@@ -6,6 +6,11 @@
   "description": "Doors one to four blocks wide and two to four blocks tall, in every wood (plain or glazed), in stone, iron and copper, plus an iron gate of bars. With one leaf or two that open in the middle, flat or arched, on the inside or the outside face of the wall. Sneak while placing to make a door swing towards you.",
   "authors": ["JorisTheWise"],
   "contributors": ["Claude"],
+  "contact": {
+    "homepage": "https://github.com/JorisTheWise/grand-doors",
+    "sources": "https://github.com/JorisTheWise/grand-doors",
+    "issues": "https://github.com/JorisTheWise/grand-doors/issues"
+  },
   "license": "MIT",
   "icon": "assets/granddoors/icon.png",
   "environment": "*",

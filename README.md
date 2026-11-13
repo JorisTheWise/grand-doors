@@ -5,8 +5,21 @@ tall: wooden (plain or glazed), stone, iron and copper doors and an iron gate of
 with an arched top, as one leaf or as two leaves that open in the middle. Mod id `granddoors`, MIT. It is needed on
 the server and on every client.
 
-It stands on its own: it does not need Doorways and uses none of its files. All doors are
-drawn with vanilla textures, so the mod ships no art.
+It stands on its own and needs only Fabric API. All doors are drawn with vanilla textures, so
+they follow your resource pack and the mod ships no art.
+
+## Install
+
+Take `granddoors-<version>.jar` from the [releases](https://github.com/JorisTheWise/grand-doors/releases)
+and put it in the `mods` folder of the server and of every client, next to Fabric API.
+Minecraft 26.3, Fabric Loader 0.19 or newer, Java 25.
+
+## Thanks
+
+The idea of doors built from one block per cell, and of cells that move when a long leaf
+opens, comes from [Doorways](https://www.curseforge.com/minecraft/mc-mods/doorways) by André
+Freitas (MIT). Grand Doors shares no code or files with it. `SHARING.md` describes what is
+different here, for him or anyone else who wants to take it over.
 
 ## Blocks
 
