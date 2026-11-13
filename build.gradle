@@ -1,0 +1,47 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+// Models, block states, recipes and loot tables are written by gen_assets.py.
+sourceSets.main.resources.srcDir 'src/generated/resources'
+
+// Server-side game tests: ./gradlew runGameTest
+fabricApi {
+	configureTests {
+		createSourceSet = true
+		modId = "granddoors_test"
+		enableGameTests = true
+		enableClientGameTests = false
+		eula = true
+	}
+}
+
+// The licence travels with the jar.
+jar {
+	from('LICENSE') {
+		rename { "LICENSE_granddoors" }
+	}
+}

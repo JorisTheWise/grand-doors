@@ -1,0 +1,5 @@
+.gradle/
+build/
+run/
+# Written by gen_assets.py on every build
+src/generated/

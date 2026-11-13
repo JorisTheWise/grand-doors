@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "package": "net.watchtower.doors.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": ["WalkNodeEvaluatorMixin"],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

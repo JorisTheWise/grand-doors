@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "granddoors_test",
+  "version": "1.0.0",
+  "name": "Grand Doors tests",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["net.watchtower.doors.test.MemoryProbe"],
+    "fabric-gametest": ["net.watchtower.doors.test.GrandDoorTests"]
+  },
+  "depends": {
+    "granddoors": "*"
+  }
+}

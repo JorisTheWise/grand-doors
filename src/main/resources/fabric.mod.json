@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "granddoors",
+  "version": "${version}",
+  "name": "Grand Doors",
+  "description": "Doors one to four blocks wide and two to four blocks tall, in every wood (plain or glazed), in stone, iron and copper, plus an iron gate of bars. With one leaf or two that open in the middle, flat or arched, on the inside or the outside face of the wall. Sneak while placing to make a door swing towards you.",
+  "authors": ["JorisTheWise"],
+  "contributors": ["Claude"],
+  "license": "MIT",
+  "icon": "assets/granddoors/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["net.watchtower.doors.GrandDoors"]
+  },
+  "mixins": ["granddoors.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.19",
+    "fabric-api": "*",
+    "minecraft": "~26.3",
+    "java": ">=25"
+  },
+  "custom": {
+    "modmenu": {
+      "update_checker": false
+    }
+  }
+}
