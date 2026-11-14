@@ -19,7 +19,9 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoorHingeSide;
+import net.minecraft.world.level.block.state.properties.WallSide;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.AABB;
 import net.watchtower.doors.GrandDoorBlock;
@@ -95,9 +97,10 @@ public class GrandDoorTests {
 	private static void build(GameTestHelper helper, GrandDoorBlock door, Direction facing, DoorHingeSide hinge, boolean front) {
 		for (int part = 0; part < door.width(); part++) {
 			for (int row = 0; row < door.height(); row++) {
-				BlockState state = door.defaultBlockState()
-					.setValue(GrandDoorBlock.FACING, facing)
-					.setValue(GrandDoorBlock.FRONT, front);
+				BlockState state = door.defaultBlockState().setValue(GrandDoorBlock.FACING, facing);
+				if (!door.fence()) {
+					state = state.setValue(GrandDoorBlock.FRONT, front);
+				}
 				state = inRow(door, state, row);
 				if (door.partProperty() != null) {
 					state = state.setValue(door.partProperty(), part);
@@ -714,9 +717,10 @@ public class GrandDoorTests {
 		List<BlockPos> cells = new ArrayList<>();
 		for (int part = 0; part < door.width(); part++) {
 			for (int row = 0; row < door.height(); row++) {
-				BlockState state = door.defaultBlockState()
-					.setValue(GrandDoorBlock.FACING, facing)
-					.setValue(GrandDoorBlock.FRONT, front);
+				BlockState state = door.defaultBlockState().setValue(GrandDoorBlock.FACING, facing);
+				if (!door.fence()) {
+					state = state.setValue(GrandDoorBlock.FRONT, front);
+				}
 				state = inRow(door, state, row);
 				if (door.partProperty() != null) {
 					state = state.setValue(door.partProperty(), part);
@@ -1007,6 +1011,157 @@ public class GrandDoorTests {
 			.thenExecute(() -> {
 				assertGone(helper, closedCells(door, facing));
 				assertDropped(helper, door, 0);
+			})
+			.thenSucceed();
+	}
+
+	// ---- fence gates ----------------------------------------------------------------------
+
+	@GameTest(maxTicks = 100)
+	public void splitFenceGateOpensInPlace(GameTestHelper helper) {
+		GrandDoorBlock gate = door("oak_split_fence_gate_3x1");
+		Direction facing = Direction.NORTH;
+		floor(helper);
+		build(helper, gate, facing, DoorHingeSide.LEFT);
+		List<BlockPos> cells = closedCells(gate, facing);
+		BlockPos end = closedCell(facing, 0, 0);
+		helper.startSequence()
+			.thenExecute(() -> {
+				assertDoor(helper, gate, cells, false);
+				BlockState state = helper.getBlockState(end);
+				helper.assertTrue(!state.hasProperty(GrandDoorBlock.FRONT), Component.literal("a fence gate has no front"));
+				AABB shut = state.getCollisionShape(helper.getLevel(), helper.absolutePos(end)).bounds();
+				helper.assertTrue(Math.abs(shut.getYsize() - 1.5) < 1e-6, Component.literal("a fence gate is 1.5 tall to walk into, was " + shut.getYsize()));
+				AABB outline = state.getShape(helper.getLevel(), helper.absolutePos(end)).bounds();
+				helper.assertTrue(Math.abs(outline.getYsize() - 1.0) < 1e-6, Component.literal("a fence gate looks 1 tall"));
+			})
+			.thenExecute(() -> use(helper, closedCell(facing, 1, 0)))
+			.thenIdle(2)
+			.thenExecute(() -> {
+				assertDoor(helper, gate, cells, true);
+				AABB leaf = helper.getBlockState(end).getCollisionShape(helper.getLevel(), helper.absolutePos(end)).bounds();
+				helper.assertTrue(Math.abs(leaf.getZsize() - 1.5) < 1e-6, Component.literal("open leaf should be 1.5 long, was " + leaf.getZsize()));
+				BlockPos middle = closedCell(facing, 1, 0);
+				helper.assertTrue(helper.getBlockState(middle).getCollisionShape(helper.getLevel(), helper.absolutePos(middle)).isEmpty(),
+					Component.literal("the middle of an open fence gate should be free"));
+			})
+			.thenExecute(() -> use(helper, end))
+			.thenIdle(2)
+			.thenExecute(() -> assertDoor(helper, gate, cells, false))
+			.thenSucceed();
+	}
+
+	@GameTest(maxTicks = 100)
+	public void singleFenceGateSwingsItsCellsOut(GameTestHelper helper) {
+		GrandDoorBlock gate = door("oak_fence_gate_2x1");
+		Direction facing = Direction.NORTH;
+		floor(helper);
+		build(helper, gate, facing, DoorHingeSide.LEFT);
+		List<BlockPos> closed = closedCells(gate, facing);
+		List<BlockPos> open = List.of(ORIGIN, ORIGIN.relative(facing));
+		helper.startSequence()
+			.thenExecute(() -> use(helper, closedCell(facing, 1, 0)))
+			.thenIdle(2)
+			.thenExecute(() -> {
+				assertDoor(helper, gate, open, true);
+				helper.assertBlockPresent(Blocks.AIR, closedCell(facing, 1, 0));
+			})
+			.thenExecute(() -> use(helper, ORIGIN.relative(facing)))
+			.thenIdle(2)
+			.thenExecute(() -> {
+				assertDoor(helper, gate, closed, false);
+				helper.assertBlockPresent(Blocks.AIR, ORIGIN.relative(facing));
+			})
+			.thenSucceed();
+	}
+
+	@GameTest(maxTicks = 100)
+	public void fenceGateWithSomethingInFrontStaysShut(GameTestHelper helper) {
+		GrandDoorBlock gate = door("iron_split_fence_gate_2x1");
+		Direction facing = Direction.NORTH;
+		floor(helper);
+		build(helper, gate, facing, DoorHingeSide.LEFT);
+		helper.setBlock(ORIGIN.relative(facing), Blocks.STONE);
+		helper.startSequence()
+			.thenExecute(() -> use(helper, ORIGIN))
+			.thenIdle(2)
+			.thenExecute(() -> assertDoor(helper, gate, closedCells(gate, facing), false))
+			.thenSucceed();
+	}
+
+	@GameTest(maxTicks = 100)
+	public void fencesAndBarsJoinAFenceGate(GameTestHelper helper) {
+		GrandDoorBlock gate = door("oak_split_fence_gate_2x1");
+		Direction facing = Direction.NORTH;
+		BlockPos west = closedCell(facing, -1, 0);
+		BlockPos east = closedCell(facing, 2, 0);
+		BlockPos before = ORIGIN.relative(facing);
+		floor(helper);
+		helper.setBlock(west, Blocks.OAK_FENCE);
+		helper.setBlock(east, Blocks.IRON_BARS);
+		helper.setBlock(before, Blocks.OAK_FENCE);
+		build(helper, gate, facing, DoorHingeSide.LEFT);
+		helper.startSequence()
+			.thenIdle(2)
+			.thenExecute(() -> {
+				helper.assertTrue(helper.getBlockState(west).getValue(BlockStateProperties.EAST), Component.literal("the fence beside the gate should join it"));
+				helper.assertTrue(helper.getBlockState(east).getValue(BlockStateProperties.WEST), Component.literal("the bars beside the gate should join it"));
+				helper.assertTrue(!helper.getBlockState(before).getValue(BlockStateProperties.SOUTH), Component.literal("a fence in front of the gate should not join it"));
+			})
+			.thenExecute(() -> helper.setBlock(ORIGIN, Blocks.AIR))
+			.thenIdle(2)
+			.thenExecute(() -> {
+				helper.assertTrue(!helper.getBlockState(west).getValue(BlockStateProperties.EAST), Component.literal("the fence lets go when the gate is gone"));
+				helper.assertTrue(!helper.getBlockState(east).getValue(BlockStateProperties.WEST), Component.literal("the bars let go when the gate is gone"));
+			})
+			.thenSucceed();
+	}
+
+	@GameTest(maxTicks = 100)
+	public void wallJoinsAFenceGateAndTheFreeEndLetsGo(GameTestHelper helper) {
+		GrandDoorBlock gate = door("spruce_fence_gate_2x1");
+		Direction facing = Direction.NORTH;
+		BlockPos west = closedCell(facing, -1, 0);
+		BlockPos east = closedCell(facing, 2, 0);
+		floor(helper);
+		helper.setBlock(west, Blocks.COBBLESTONE_WALL);
+		helper.setBlock(east, Blocks.SPRUCE_FENCE);
+		build(helper, gate, facing, DoorHingeSide.LEFT);
+		helper.startSequence()
+			.thenIdle(2)
+			.thenExecute(() -> {
+				helper.assertTrue(helper.getBlockState(west).getValue(BlockStateProperties.EAST_WALL) != WallSide.NONE, Component.literal("the wall beside the gate should join it"));
+				helper.assertTrue(helper.getBlockState(east).getValue(BlockStateProperties.WEST), Component.literal("the fence at the free end should join the shut gate"));
+			})
+			.thenExecute(() -> use(helper, ORIGIN))
+			.thenIdle(2)
+			.thenExecute(() -> {
+				helper.assertTrue(helper.getBlockState(west).getValue(BlockStateProperties.EAST_WALL) != WallSide.NONE, Component.literal("the wall stays joined to the hinge end"));
+				helper.assertTrue(!helper.getBlockState(east).getValue(BlockStateProperties.WEST), Component.literal("the fence lets go of the end that swung away"));
+			})
+			.thenSucceed();
+	}
+
+	@GameTest(maxTicks = 100)
+	public void fenceGateFollowsRedstoneAndDropsOne(GameTestHelper helper) {
+		GrandDoorBlock gate = door("birch_split_fence_gate_3x1");
+		Direction facing = Direction.NORTH;
+		floor(helper);
+		build(helper, gate, facing, DoorHingeSide.LEFT);
+		List<BlockPos> cells = closedCells(gate, facing);
+		BlockPos power = closedCell(facing, 1, 0).relative(facing.getOpposite());
+		helper.startSequence()
+			.thenExecute(() -> helper.setBlock(power, Blocks.REDSTONE_BLOCK))
+			.thenIdle(2)
+			.thenExecute(() -> assertDoor(helper, gate, cells, true))
+			.thenExecute(() -> helper.setBlock(power, Blocks.AIR))
+			.thenIdle(2)
+			.thenExecute(() -> assertDoor(helper, gate, cells, false))
+			.thenExecute(() -> mine(helper, closedCell(facing, 2, 0), new ItemStack(Items.IRON_AXE)))
+			.thenIdle(2)
+			.thenExecute(() -> {
+				assertGone(helper, cells);
+				assertDropped(helper, gate, 1);
 			})
 			.thenSucceed();
 	}

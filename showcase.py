@@ -8,7 +8,7 @@ bay, all closed and facing north.
     python watchtower-doors/showcase.py size tinted styles 1x1
 
 Words after the corner pick what goes on the deck: the names of creative tabs (wood,
-arched_wood, stone, iron, copper, glazed, tinted, styles) and "1x1" for the doors of one
+arched_wood, stone, iron, copper, glazed, tinted, styles, fences) and "1x1" for the doors of one
 block of every family. With none, every door.
 
 X Y Z is the north-west corner of the deck (its floor is at Y). Pick a spot with air in the

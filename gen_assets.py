@@ -88,6 +88,22 @@ def glazed(name, label, frame=None, tinted=False):
     return family
 
 
+# Fence gates: one block tall, two or three wide, standing in the middle of their cells where a
+# fence stands. The leaf is 2 thick and lies INSET pixels in front of the back face.
+FENCE_STYLES = ("fence", "railing")
+FENCE_SIZES = {(2, 1, True), (2, 1, False), (3, 1, True), (3, 1, False)}
+INSET = 7
+
+
+def fence_gate(name, label):
+    """The vanilla fence gate of a wood, made wide: its rails and stiles in planks."""
+    family = wood(name, label)
+    family.update(noun="fence_gate", style="fence", kind="fence_gate", tab="fences", sizes=FENCE_SIZES,
+                  gate_recipe=[f"minecraft:{name}_fence_gate"])
+    family["textures"] = dict(family["textures"], frame=block(name + "_planks"))
+    return family
+
+
 # The three looks that only come in the sizes of a house door.
 HOUSE_SIZES = {(1, 2, False), (2, 2, True), (2, 2, False)}
 
@@ -181,12 +197,22 @@ FAMILIES = [
     glazed("crimson", "Crimson", "stripped_crimson_stem"), glazed("warped", "Warped", "stripped_warped_stem"),
     *(glazed(name, label, frame, tinted=True) for name, label, frame in WOODS),
     *(house_style(kind, name, label, frame) for kind in ("boarded", "windowed", "lattice") for name, label, frame in WOODS),
+    *(fence_gate(name, label) for name, label, _ in WOODS),
+    {
+        "stem": "iron", "noun": "fence_gate", "style": "railing", "kind": "fence_gate", "tab": "fences",
+        "material": "iron", "label": "Iron", "sizes": FENCE_SIZES,
+        "textures": {"base": block("anvil"), "frame": block("anvil"), "metal": block("anvil")},
+        "tool": "pickaxe",
+        "gate_recipe": ["minecraft:iron_bars", "minecraft:iron_nugget"],
+    },
 ]
 
 
-def moving(width, split):
-    """The door whose cells move when it opens: one leaf longer than two blocks."""
-    return not split and width > 2
+def moving(width, split, style=None):
+    """The door whose cells move when it opens: one leaf longer than two blocks. A fence gate
+    stands in the middle of its cells, so there one leaf of two blocks is already too long.
+    """
+    return not split and width > (1 if style in FENCE_STYLES else 2)
 
 
 def door_name(family, width, height, split, arched):
@@ -206,6 +232,7 @@ TABS = {
     "glazed": "Grand Doors: Glazed",
     "tinted": "Grand Doors: Tinted Glass",
     "styles": "Grand Doors: House Doors",
+    "fences": "Grand Doors: Fence Gates",
 }
 
 
@@ -228,8 +255,8 @@ def doors():
         for arched in (False, True):
             for height in HEIGHTS:
                 for width, split in SHAPES:
-                    if height == 1 and width > 1:
-                        continue  # one block tall only as the door of one block
+                    if height == 1 and width > 1 and family["style"] not in FENCE_STYLES:
+                        continue  # one block tall only as the door of one block, and as a fence gate
                     if "sizes" in family and (width, height, split) not in family["sizes"]:
                         continue
                     can_arch = height >= 3 and not moving(width, split)
@@ -267,6 +294,24 @@ def top(offset):
 
 def leaf_boxes(length, height, style):
     """Boxes (u0, u1, v0, v1, w0, w1, texture) of one leaf, before cutting."""
+    if style == "fence":
+        # The vanilla fence gate drawn long: a post at the hinge, a stile at the free end, two
+        # rails at the height of a fence's, and a short stile between them every block or so.
+        boxes = [(0, 2, 5, 16, 0, 2, "base"), (length - 2, length, 6, 15, 0, 2, "base"),
+                 (2, length - 2, 6, 9, 0, 2, "base"), (2, length - 2, 12, 15, 0, 2, "base")]
+        spans = math.ceil(length / 16)
+        for k in range(1, spans):
+            u = length * k / spans
+            boxes.append((u - 1, u + 1, 9, 12, 0, 2, "base"))
+        return boxes
+    if style == "railing":
+        # An iron railing: two posts, a rail low and a rail high, thin bars that stand through
+        # the top rail.
+        boxes = [(0, 2, 3, 16, 0, 2, "frame"), (length - 2, length, 3, 15, 0, 2, "frame"),
+                 (2, length - 2, 4, 6, 0, 2, "frame"), (2, length - 2, 12, 14, 0, 2, "frame")]
+        for u in range(4, int(length) - 2, 4):
+            boxes.append((u - 0.5, u + 0.5, 6, 16, 0.5, 1.5, "base"))
+        return boxes
     if style == "gate":
         boxes = [(0, 2, 0, top(-1), 0.5, 2.5, "frame"), (length - 2, length, 0, top(-1), 0.5, 2.5, "frame")]
         rails = [(2, 4), (top(-5), top(-3))]
@@ -398,7 +443,8 @@ def door_cells(width, height, split, style, arched, opened, hinge_right=False, f
     span = width * 16
     cells = {(p, r): [] for p in range(width) for r in range(height)}
     length = span // 2 if split else span
-    moves = moving(width, split)
+    moves = moving(width, split, style)
+    inset = INSET if style in FENCE_STYLES else 0
     for right in ((False, True) if split else (hinge_right,)):
         def to_door(u, right=right):
             return span - u if right else u
@@ -410,12 +456,12 @@ def door_cells(width, height, split, style, arched, opened, hinge_right=False, f
             if not opened:
                 x = (span - u1, span - u0) if right else (u0, u1)
                 part = int(x[0] // 16)
-                z = (w0, w1) if front else (16 - w1, 16 - w0)
+                z = (w0, w1) if front else (16 - inset - w1, 16 - inset - w0)
                 cells[(part, row)].append(element((x[0] - 16 * part, x[1] - 16 * part), y, z, tu, tv, tw, tex))
                 continue
             # Turned out around the hinge: the leaf runs along -z from the inside face.
             x = (16 - w1, 16 - w0) if right else (w0, w1)
-            z = (16 - u1, 16 - u0)
+            z = (16 - inset - u1, 16 - inset - u0)
             hinge = width - 1 if right else 0
             if moves:
                 # The cell that draws this piece has moved out in front of the hinge.
@@ -446,13 +492,16 @@ def item_model(width, height, split, style, arched, textures):
     span = width * 16
     scale = 16 / max(span, height * 16)
     lift_x = (16 - span * scale) / 2
+    fence = style in FENCE_STYLES
+    lift_y = (16 - height * 16 * scale) / 2 if fence else 0   # a low gate sits in the middle of its slot
+    plane = 14.5 - INSET if fence else 14.5
     elements = []
     for (part, row), cell in door_cells(width, height, split, style, arched, False).items():
         for e in cell:
             f, t = e["from"], e["to"]
             elements.append({
-                "from": [round((f[0] + 16 * part) * scale + lift_x, 3), round((f[1] + 16 * row) * scale, 3), round(8 + (f[2] - 14.5) * scale, 3)],
-                "to": [round((t[0] + 16 * part) * scale + lift_x, 3), round((t[1] + 16 * row) * scale, 3), round(8 + (t[2] - 14.5) * scale, 3)],
+                "from": [round((f[0] + 16 * part) * scale + lift_x, 3), round((f[1] + 16 * row) * scale + lift_y, 3), round(8 + (f[2] - plane) * scale, 3)],
+                "to": [round((t[0] + 16 * part) * scale + lift_x, 3), round((t[1] + 16 * row) * scale + lift_y, 3), round(8 + (t[2] - plane) * scale, 3)],
                 "faces": e["faces"],
             })
     # In a slot the door is seen straight on, filling it, rather than as a thin slab at an angle.
@@ -472,6 +521,9 @@ def recipe(family, width, height, split, arched):
     def one(h):
         return f"{MOD}:{door_name(family, 1, h, False, arched and h >= 3)}"
 
+    if "gate_recipe" in family:
+        # A fence gate: that many vanilla fence gates (iron: bars and nuggets) side by side.
+        return {"shapeless": family["gate_recipe"] * width + (["minecraft:stick"] if split else [])}
     if width > 1:
         return {"shapeless": [one(height)] * width + (["minecraft:stick"] if split else [])}
     if height == 1:
@@ -532,6 +584,9 @@ def main():
         textures = dict(family["textures"], particle=family["textures"]["base"])
         entry = {"tab": tab_of(family, arched), "name": name, "material": family["material"],
                  "width": width, "height": height, "split": split}
+        fence = style in FENCE_STYLES
+        if fence:
+            entry["fence"] = True
         if family.get("weathers_to"):
             entry["weathers_to"] = door_name(dict(family, stem=family["weathers_to"]), width, height, split, arched)
             entry["fresh"] = family["fresh"]
@@ -541,12 +596,15 @@ def main():
 
         variants = {}
         positions = [(False, None), (True, None)] if split else [(False, False), (False, True), (True, False), (True, True)]
-        for opened, hinge_right, front in [(o, h, f) for o, h in positions for f in (False, True)]:
+        # A fence gate stands in the middle of its cells: it has no front or back face.
+        for opened, hinge_right, front in [(o, h, f) for o, h in positions for f in ((False,) if fence else (False, True))]:
             cells = door_cells(width, height, split, style, arched, opened, bool(hinge_right), front)
             for (part, row), elements in cells.items():
                 ref = block_model(elements, textures) if elements else f"{MOD}:block/empty"
                 for facing, turn in FACINGS.items():
-                    key = f"facing={facing},front={str(front).lower()},open={str(opened).lower()}"
+                    key = f"facing={facing},open={str(opened).lower()}"
+                    if not fence:
+                        key += f",front={str(front).lower()}"
                     if height > 1:
                         key += f",row={row}"
                     if width > 1:

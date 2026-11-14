@@ -2,8 +2,9 @@
 
 A Fabric mod for Minecraft 26.3 with doors one to four blocks wide and one to four blocks
 tall: wooden (plain or glazed), stone, iron and copper doors and an iron gate of bars, flat or
-with an arched top, as one leaf or as two leaves that open in the middle. Mod id `granddoors`, MIT. It is needed on
-the server and on every client.
+with an arched top, as one leaf or as two leaves that open in the middle; and fence gates two
+and three blocks wide that open as one. Mod id `granddoors`, MIT. It is needed on the server
+and on every client.
 
 It stands on its own and needs only Fabric API. All doors are drawn with vanilla textures, so
 they follow your resource pack and the mod ships no art.
@@ -23,8 +24,9 @@ different here, for him or anyone else who wants to take it over.
 
 ## Blocks
 
-`granddoors:<family>[_arched][_split]_<kind>_<w>x<h>`, 1,530 in all. `<kind>` is `door`,
-`gate`, `glazed_door`, `tinted_door`, `boarded_door`, `windowed_door` or `lattice_door`.
+`granddoors:<family>[_arched][_split]_<kind>_<w>x<h>`, 1,582 in all. `<kind>` is `door`,
+`gate`, `glazed_door`, `tinted_door`, `boarded_door`, `windowed_door`, `lattice_door` or
+`fence_gate`.
 
 | Family | Ids start with | Looks like |
 | --- | --- | --- |
@@ -39,6 +41,8 @@ different here, for him or anyone else who wants to take it over.
 | boarded, the 12 woods | `oak_` ... `boarded_door` | plain planks on three ledges with strap hinges; house-door sizes only |
 | windowed, the 12 woods | `oak_` ... `windowed_door` | the panelled door with a small window at eye height; house-door sizes only |
 | lattice, the 12 woods | `oak_` ... `lattice_door` | glass above in four small panes to a block; house-door sizes only |
+| fence gate, the 12 woods | `oak_` ... `fence_gate` | the vanilla fence gate made wide, in planks; see "Fence gates" |
+| iron fence gate | `iron_` ... `fence_gate` | a low railing of dark bars |
 
 | Shape | In the id | Leaves |
 | --- | --- | --- |
@@ -54,6 +58,29 @@ the boarded, windowed and lattice looks come in those only (boarded also as `1x1
 (`oak_arched_split_door_3x3`, `iron_arched_gate_1x4`). Stone doors that tall are always
 arched and have no `_arched` in their id. The single leaf three wide (`door_3x<h>`) has no
 arched form, in any family.
+
+## Fence gates
+
+Two vanilla fence gates side by side are still two gates. These are one: `fence_gate_2x1` and
+`fence_gate_3x1` (one leaf) and `split_fence_gate_2x1` and `split_fence_gate_3x1` (two leaves
+that open in the middle), in the 12 woods and in iron, 52 in all.
+
+```
+setblock X Y Z granddoors:oak_split_fence_gate_3x1[facing=north,part=0]
+```
+
+- They have the states of a door one block tall (`facing`, `part`, `open`, `powered`, and
+  `hinge` on the single ones), but **no `row` and no `front`**: a fence gate stands in the
+  middle of its cells, where a fence stands.
+- Like a fence they are one block tall to look at and a block and a half to walk into, open or
+  shut. Fences, walls and bars beside a gate join up with it.
+- The single gates move their cells when they open, like `door_3x<h>`: the hinge cell stays
+  and the others go in front of it, so those cells (one for `2x1`, two for `3x1`) must be air
+  or replaceable. The split gates stay in place and need the cell in front of both end columns
+  free of anything you can bump into.
+- Villagers and animals do not open them. Unlike vanilla's they do not sink into a wall.
+- Made from two or three vanilla fence gates of the wood (iron: as many iron bars and iron
+  nuggets), and a stick for the split ones.
 
 ## Block states
 
@@ -125,8 +152,8 @@ A door that has no room does not open and makes the locked-chest sound.
 Right-click opens and closes any of them, the iron ones too. A redstone signal on any cell
 opens the door and its end closes it: a lever, button or pressure plate beside the door, or
 dust or a powered block against any of its cells. An observer looking at a cell sees the door
-open and close. The doors are in eight creative tabs (wood, arched wood, stone, iron, copper,
-glazed, tinted glass, house doors). Names and tooltips are in English, Dutch, Vlaams, German, French and Spanish
+open and close. The doors are in nine creative tabs (wood, arched wood, stone, iron, copper,
+glazed, tinted glass, house doors, fence gates). Names and tooltips are in English, Dutch, Vlaams, German, French and Spanish
 (`lang.py`), and each item's tooltip gives its size. Breaking any cell breaks the whole door and drops one
 item (stone, iron and copper need a pickaxe).
 
@@ -157,8 +184,8 @@ Recipes, all shapeless unless said:
 
 ## Cost
 
-The mod adds about 479,000 block states (1,530 doors, each with all its facings, cells and
-positions). Measured on a bare 26.3 server that is about 185 MB of heap: 315 MB in use after
+The mod adds about 482,000 block states (1,582 doors, each with all its facings, cells and
+positions). Measured on a bare 26.3 server that is about 190 MB of heap: 322 MB in use after
 start with the mod, 129 MB with a single door registered. `MemoryProbe` in `src/gametest`
 logs the numbers on every `runGameTest`. A family of doors in every shape is about 9,400
 states, some 4 MB; the glazed and the tinted woods are each a quarter of the total.
@@ -204,5 +231,8 @@ docstring explains how a leaf is drawn.
   villager is near.
 - Copper: when one cell turns into the same cell of another door of the same build (by time,
   axe or honeycomb), the rest of the door follows it instead of falling apart.
+- Fence gates: vanilla's fences and walls only join their own fence gate block, and bars
+  none at all. Three small mixins (`FenceBlockMixin`, `WallBlockMixin`, `IronBarsBlockMixin`)
+  let them join a Grand Doors fence gate along its line.
 - An arch is cut out of the leaves, and the stone or timber above it is drawn by the top
   cells whether the door is open or not. That is why the door whose cells move has no arch.

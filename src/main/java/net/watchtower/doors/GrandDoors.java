@@ -31,7 +31,7 @@ import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
 import net.minecraft.world.level.material.PushReaction;
 
 /**
- * Doors one to four blocks wide and two to four tall. Every door is one block per cell; see
+ * Doors one to four blocks wide and one to four tall, and fence gates two and three wide. Every door is one block per cell; see
  * {@link GrandDoorBlock}.
  *
  * <p>Which doors exist is decided in one place, gen_assets.py, which writes the list this
@@ -58,6 +58,7 @@ public final class GrandDoors implements ModInitializer {
 				door.get("width").getAsInt(),
 				door.get("height").getAsInt(),
 				door.get("split").getAsBoolean(),
+				door.has("fence"),
 				door.has("weathers_to")));
 		}
 		// Copper: what each door weathers to, and its waxed twin. Registering the pairs is what
@@ -95,7 +96,7 @@ public final class GrandDoors implements ModInitializer {
 		return new InputStreamReader(in, StandardCharsets.UTF_8);
 	}
 
-	private static GrandDoorBlock register(String tab, String name, DoorMaterial material, int width, int height, boolean split, boolean weathers) {
+	private static GrandDoorBlock register(String tab, String name, DoorMaterial material, int width, int height, boolean split, boolean fence, boolean weathers) {
 		Identifier id = Identifier.fromNamespaceAndPath(MOD_ID, name);
 		ResourceKey<Block> blockKey = ResourceKey.create(Registries.BLOCK, id);
 		ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, id);
@@ -119,7 +120,8 @@ public final class GrandDoors implements ModInitializer {
 		}
 		BlockBehaviour.Properties finished = properties;
 		GrandDoorBlock block = Registry.register(BuiltInRegistries.BLOCK, blockKey,
-			GrandDoorBlock.sized(width, height, split, () -> new GrandDoorBlock(width, height, split, material.type, material.opensForMobs(), finished)));
+			GrandDoorBlock.sized(width, height, split, fence,
+				() -> new GrandDoorBlock(width, height, split, fence, material.type, !fence && material.opensForMobs(), finished)));
 
 		GrandDoorItem item = new GrandDoorItem(block, new Item.Properties().useBlockDescriptionPrefix().setId(itemKey));
 		Registry.register(BuiltInRegistries.ITEM, itemKey, item);

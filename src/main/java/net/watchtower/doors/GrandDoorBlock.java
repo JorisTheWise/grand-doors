@@ -67,6 +67,11 @@ import org.jspecify.annotations.Nullable;
  * outer corners and an open leaf lies wholly outside the wall: exactly one cell further out
  * than for a door on the back face. A cell cannot draw that far, so every cell that carries a
  * leaf steps one cell forward when such a door opens, and back when it closes.
+ *
+ * <p>A fence gate is a door one block tall that stands in the middle of its cells, where a
+ * fence stands, and stops what a fence stops (it is a block and a half tall to walk into). It
+ * has no {@code front}. Its leaf lies further out than a door's, so a single leaf of two
+ * blocks already moves its cells, and fences, walls and bars beside it join up with it.
  */
 public class GrandDoorBlock extends Block {
 	public static final EnumProperty<Direction> FACING = HorizontalDirectionalBlock.FACING;
@@ -86,6 +91,10 @@ public class GrandDoorBlock extends Block {
 
 	/** Leaf thickness in pixels. */
 	private static final double THICK = 3.0;
+	/** How far in front of the back face of its cells a fence gate stands, in pixels. */
+	private static final double FENCE_INSET = 7.0;
+	/** What a fence gate is to walk into: as tall as a fence. */
+	private static final double FENCE_TALL = 24.0;
 	private static final int SIGNAL_POLL_TICKS = 5;
 	/** Set a cell without telling its neighbours, so a half-moved door never sees itself. */
 	private static final int QUIET = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
@@ -104,6 +113,12 @@ public class GrandDoorBlock extends Block {
 	private final int width;
 	private final int height;
 	private final boolean split;
+	private final boolean fence;
+	private final Map<Direction, VoxelShape> closedFence;
+	/** Fence gates: the same shapes a block and a half tall, to walk into. */
+	private final Map<Direction, VoxelShape> closedTall;
+	private final Map<Direction, VoxelShape> leafLeftTall;
+	private final Map<Direction, VoxelShape> leafRightTall;
 	/** True for the one kind of door whose cells move when it opens. */
 	private final boolean moves;
 	/** How far an open leaf reaches past its hinge cell, in pixels. */
@@ -118,14 +133,14 @@ public class GrandDoorBlock extends Block {
 	/** Once a day on average, as vanilla copper: the share of random ticks that try at all. */
 	private static final float WEATHER_TRY = 0.05688889F;
 
-	private record Size(int width, int height, boolean split) {
+	private record Size(int width, int height, boolean split, boolean fence) {
 	}
 
 	/** One cell of a door: where it is and which cell it is. */
 	private record Cell(BlockPos pos, int part, int row) {
 	}
 
-	public static <T extends Block> T sized(int width, int height, boolean split, Supplier<T> factory) {
+	public static <T extends Block> T sized(int width, int height, boolean split, boolean fence, Supplier<T> factory) {
 		if (width < 1 || width > MAX_WIDTH) {
 			throw new IllegalArgumentException("width must be 1.." + MAX_WIDTH + ", was " + width);
 		}
@@ -135,7 +150,10 @@ public class GrandDoorBlock extends Block {
 		if (split && width < 2) {
 			throw new IllegalArgumentException("a split door is at least 2 wide");
 		}
-		BUILDING.set(new Size(width, height, split));
+		if (fence && (height != 1 || width < 2 || (split && width > 3))) {
+			throw new IllegalArgumentException("a fence gate is 1 tall and at least 2 wide; split, at most 3 wide");
+		}
+		BUILDING.set(new Size(width, height, split, fence));
 		try {
 			return factory.get();
 		} finally {
@@ -143,23 +161,33 @@ public class GrandDoorBlock extends Block {
 		}
 	}
 
-	public GrandDoorBlock(int width, int height, boolean split, BlockSetType type, boolean opensForMobs, BlockBehaviour.Properties properties) {
+	public GrandDoorBlock(int width, int height, boolean split, boolean fence, BlockSetType type, boolean opensForMobs, BlockBehaviour.Properties properties) {
 		super(properties);
 		this.opensForMobs = opensForMobs;
+		this.fence = fence;
 		this.width = width;
 		this.height = height;
 		this.split = split;
 		this.type = type;
 		double leaf = split ? width * 8.0 : width * 16.0;
-		this.moves = leaf > 32;
-		this.reach = this.moves ? 0 : leaf - 16;
-		this.leafLeft = shapes(0, -this.reach, THICK, 16);
-		this.leafRight = shapes(16 - THICK, -this.reach, 16, 16);
+		double inset = fence ? FENCE_INSET : 0;
+		this.moves = fence ? !split : leaf > 32;
+		// A leaf that moves its cells is drawn a block at a time; a fence gate's still lies its
+		// inset into the cell in front.
+		this.reach = this.moves ? inset : leaf - 16 + inset;
+		this.leafLeft = shapes(0, -this.reach, THICK, 16 - inset, 16);
+		this.leafRight = shapes(16 - THICK, -this.reach, 16, 16 - inset, 16);
+		this.leafLeftTall = shapes(0, -this.reach, THICK, 16 - inset, FENCE_TALL);
+		this.leafRightTall = shapes(16 - THICK, -this.reach, 16, 16 - inset, FENCE_TALL);
+		this.closedFence = shapes(0, 6, 16, 10, 16);
+		this.closedTall = shapes(0, 6, 16, 10, FENCE_TALL);
 		BlockState state = this.stateDefinition.any()
 			.setValue(FACING, Direction.NORTH)
 			.setValue(OPEN, false)
-			.setValue(POWERED, false)
-			.setValue(FRONT, false);
+			.setValue(POWERED, false);
+		if (!fence) {
+			state = state.setValue(FRONT, false);
+		}
 		if (width > 1) {
 			state = state.setValue(PARTS[width], 0);
 		}
@@ -175,7 +203,10 @@ public class GrandDoorBlock extends Block {
 		if (size == null) {
 			throw new IllegalStateException("make a GrandDoorBlock through GrandDoorBlock.sized");
 		}
-		builder.add(FACING, OPEN, POWERED, FRONT);
+		builder.add(FACING, OPEN, POWERED);
+		if (!size.fence()) {
+			builder.add(FRONT);
+		}
 		if (size.height() > 1) {
 			builder.add(ROWS[size.height()]);
 		}
@@ -206,6 +237,27 @@ public class GrandDoorBlock extends Block {
 
 	public boolean split() {
 		return this.split;
+	}
+
+	/** True for a fence gate: one block tall, in the middle of its cells, without {@code front}. */
+	public boolean fence() {
+		return this.fence;
+	}
+
+	/** True if the closed door stands on the face it swings towards. A fence gate never does. */
+	private boolean front(BlockState state) {
+		return !this.fence && state.getValue(FRONT);
+	}
+
+	/**
+	 * True if a fence, wall or bar beside this cell, on the side {@code side} points along,
+	 * joins up with it: along the gate, and not to a cell that has swung out in front.
+	 */
+	public boolean joinsFence(BlockState state, Direction side) {
+		if (!this.fence || side.getAxis() != state.getValue(FACING).getClockWise().getAxis()) {
+			return false;
+		}
+		return !state.getValue(OPEN) || this.isHinge(state, this.partOf(state));
 	}
 
 	// ---- geometry -------------------------------------------------------------------------
@@ -241,7 +293,7 @@ public class GrandDoorBlock extends Block {
 
 	/** True if the door leaves some of its closed cells when it opens. */
 	private boolean wanders(BlockState state) {
-		return this.moves || state.getValue(FRONT);
+		return this.moves || this.front(state);
 	}
 
 	/** Where a cell sits, counted from the door's left bottom cell when closed. */
@@ -253,7 +305,7 @@ public class GrandDoorBlock extends Block {
 			int hinge = this.hingePart(door);
 			at = BlockPos.ZERO.relative(wall, hinge).relative(facing, Math.abs(part - hinge));
 		}
-		if (open && door.getValue(FRONT) && this.carriesLeaf(door, part)) {
+		if (open && this.front(door) && this.carriesLeaf(door, part)) {
 			at = at.relative(facing);
 		}
 		return at.above(row);
@@ -282,32 +334,54 @@ public class GrandDoorBlock extends Block {
 
 	/** A box drawn for a door facing north (out is -z, left is -x), turned to every facing. */
 	private static Map<Direction, VoxelShape> shapes(double x0, double z0, double x1, double z1) {
+		return shapes(x0, z0, x1, z1, 16);
+	}
+
+	private static Map<Direction, VoxelShape> shapes(double x0, double z0, double x1, double z1, double tall) {
 		Map<Direction, VoxelShape> out = new EnumMap<>(Direction.class);
-		out.put(Direction.NORTH, flat(x0, z0, x1, z1));
-		out.put(Direction.EAST, flat(16 - z0, x0, 16 - z1, x1));
-		out.put(Direction.SOUTH, flat(16 - x0, 16 - z0, 16 - x1, 16 - z1));
-		out.put(Direction.WEST, flat(z0, 16 - x0, z1, 16 - x1));
+		out.put(Direction.NORTH, flat(x0, z0, x1, z1, tall));
+		out.put(Direction.EAST, flat(16 - z0, x0, 16 - z1, x1, tall));
+		out.put(Direction.SOUTH, flat(16 - x0, 16 - z0, 16 - x1, 16 - z1, tall));
+		out.put(Direction.WEST, flat(z0, 16 - x0, z1, 16 - x1, tall));
 		return out;
 	}
 
-	private static VoxelShape flat(double xa, double za, double xb, double zb) {
-		return Shapes.box(Math.min(xa, xb) / 16, 0, Math.min(za, zb) / 16, Math.max(xa, xb) / 16, 1, Math.max(za, zb) / 16);
+	private static VoxelShape flat(double xa, double za, double xb, double zb, double tall) {
+		return Shapes.box(Math.min(xa, xb) / 16, 0, Math.min(za, zb) / 16, Math.max(xa, xb) / 16, tall / 16, Math.max(za, zb) / 16);
 	}
 
 	@Override
 	protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+		return this.shape(state, false);
+	}
+
+	@Override
+	protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+		return this.shape(state, this.fence);
+	}
+
+	/** The cell's shape; {@code tall} for a fence gate as something to walk into. */
+	private VoxelShape shape(BlockState state, boolean tall) {
 		Direction facing = state.getValue(FACING);
 		if (!state.getValue(OPEN)) {
+			if (this.fence) {
+				return (tall ? this.closedTall : this.closedFence).get(facing);
+			}
 			return (state.getValue(FRONT) ? CLOSED_FRONT : CLOSED_BACK).get(facing);
 		}
 		if (this.moves) {
-			return (this.hingePart(state) == 0 ? SIDE_LEFT : SIDE_RIGHT).get(facing);
+			boolean left = this.hingePart(state) == 0;
+			if (this.fence) {
+				return (left ? (tall ? this.leafLeftTall : this.leafLeft) : (tall ? this.leafRightTall : this.leafRight)).get(facing);
+			}
+			return (left ? SIDE_LEFT : SIDE_RIGHT).get(facing);
 		}
 		int part = this.partOf(state);
 		if (!this.isHinge(state, part)) {
 			return Shapes.empty();
 		}
-		return (this.turnsLeft(state, part) ? this.leafLeft : this.leafRight).get(facing);
+		boolean left = this.turnsLeft(state, part);
+		return (left ? (tall ? this.leafLeftTall : this.leafLeft) : (tall ? this.leafRightTall : this.leafRight)).get(facing);
 	}
 
 	@Override
@@ -328,9 +402,10 @@ public class GrandDoorBlock extends Block {
 		// placed while sneaking, it stands there too but swings towards the player.
 		boolean towards = context.isSecondaryUseActive();
 		Direction looking = context.getHorizontalDirection();
-		BlockState door = this.defaultBlockState()
-			.setValue(FACING, towards ? looking.getOpposite() : looking)
-			.setValue(FRONT, towards);
+		BlockState door = this.defaultBlockState().setValue(FACING, towards ? looking.getOpposite() : looking);
+		if (!this.fence) {
+			door = door.setValue(FRONT, towards);
+		}
 		if (!this.split) {
 			door = door.setValue(HINGE, hingeFor(context, door.getValue(FACING)));
 		}
@@ -432,7 +507,9 @@ public class GrandDoorBlock extends Block {
 					level.getBlockState(cell.pos()).updateNeighbourShapes(level, cell.pos(), Block.UPDATE_ALL);
 				}
 			}
-			level.playSound(null, pos, open ? this.type.doorOpen() : this.type.doorClose(), SoundSource.BLOCKS, 1.0F,
+			boolean creaks = this.fence && this.opensForFence();
+			level.playSound(null, pos, creaks ? (open ? SoundEvents.FENCE_GATE_OPEN : SoundEvents.FENCE_GATE_CLOSE)
+				: open ? this.type.doorOpen() : this.type.doorClose(), SoundSource.BLOCKS, 1.0F,
 				level.getRandom().nextFloat() * 0.1F + 0.9F);
 		}
 		// A door whose cells moved has left the cells its redstone was wired to, so it has to look.
@@ -458,6 +535,9 @@ public class GrandDoorBlock extends Block {
 			for (Cell cell : to) {
 				if (this.carriesLeaf(door, cell.part())) {
 					BlockPos front = cell.pos().relative(facing);
+					if (to.stream().anyMatch(other -> other.pos().equals(front))) {
+						continue;
+					}
 					if (!level.getBlockState(front).getCollisionShape(level, front).isEmpty()) {
 						return false;
 					}
@@ -474,10 +554,18 @@ public class GrandDoorBlock extends Block {
 		return this.opensForMobs;
 	}
 
-	/** How the path finder sees a cell: like a vanilla door of wood or of iron. */
+	/** A wooden fence gate sounds like vanilla's; the iron one like an iron door. */
+	private boolean opensForFence() {
+		return this.type != BlockSetType.IRON;
+	}
+
+	/** How the path finder sees a cell: like a vanilla door of wood or of iron, or a fence. */
 	public PathType pathType(BlockState state) {
 		if (state.getValue(OPEN)) {
 			return PathType.DOOR_OPEN;
+		}
+		if (this.fence) {
+			return PathType.FENCE;
 		}
 		return this.opensForMobs ? PathType.DOOR_WOOD_CLOSED : PathType.DOOR_IRON_CLOSED;
 	}
