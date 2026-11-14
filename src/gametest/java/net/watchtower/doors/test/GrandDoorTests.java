@@ -650,6 +650,98 @@ public class GrandDoorTests {
 			.thenSucceed();
 	}
 
+	// ---- two doors side by side -----------------------------------------------------------
+
+	private static List<BlockPos> buildAt(GameTestHelper helper, GrandDoorBlock door, BlockPos origin, Direction facing, boolean front) {
+		List<BlockPos> cells = new ArrayList<>();
+		for (int part = 0; part < door.width(); part++) {
+			for (int row = 0; row < door.height(); row++) {
+				BlockState state = door.defaultBlockState()
+					.setValue(GrandDoorBlock.FACING, facing)
+					.setValue(GrandDoorBlock.FRONT, front)
+					.setValue(row(door), row);
+				if (door.partProperty() != null) {
+					state = state.setValue(door.partProperty(), part);
+				}
+				BlockPos cell = origin.relative(facing.getClockWise(), part).above(row);
+				helper.setBlock(cell, state);
+				cells.add(cell);
+			}
+		}
+		return cells;
+	}
+
+	/**
+	 * Two double doors either side of a mast, each with a redstone block behind it, as on the
+	 * warship's forecastle. Both lose their power in one go and both must close.
+	 */
+	private static void twoDoorsLosePower(GameTestHelper helper, boolean front, boolean asOneFill) {
+		GrandDoorBlock door = door("dark_oak_split_door_2x2");
+		Direction facing = Direction.WEST;
+		floor(helper);
+		helper.setBlock(new BlockPos(4, 1, 3), Blocks.OAK_LOG);
+		helper.setBlock(new BlockPos(4, 2, 3), Blocks.OAK_LOG);
+		List<BlockPos> first = buildAt(helper, door, new BlockPos(4, 1, 5), facing, front);
+		List<BlockPos> second = buildAt(helper, door, new BlockPos(4, 1, 2), facing, front);
+		BlockPos powerFirst = new BlockPos(5, 1, 5);
+		BlockPos powerSecond = new BlockPos(5, 1, 2);
+		helper.startSequence()
+			.thenExecute(() -> {
+				helper.setBlock(powerFirst, Blocks.REDSTONE_BLOCK);
+				helper.setBlock(powerSecond, Blocks.REDSTONE_BLOCK);
+			})
+			.thenIdle(12)
+			.thenExecute(() -> {
+				for (BlockPos power : List.of(powerFirst, powerSecond)) {
+					helper.assertBlockPresent(Blocks.REDSTONE_BLOCK, power);
+				}
+				helper.assertTrue(first.stream().noneMatch(cell -> helper.getBlockState(cell).is(door) && !helper.getBlockState(cell).getValue(GrandDoorBlock.OPEN)),
+					Component.literal("the first door should be open"));
+				helper.assertTrue(second.stream().noneMatch(cell -> helper.getBlockState(cell).is(door) && !helper.getBlockState(cell).getValue(GrandDoorBlock.OPEN)),
+					Component.literal("the second door should be open"));
+			})
+			.thenExecute(() -> {
+				if (asOneFill) {
+					// What /fill does: every block first, without telling anyone, then the updates.
+					for (BlockPos power : List.of(powerFirst, powerSecond)) {
+						helper.getLevel().setBlock(helper.absolutePos(power), Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+					}
+					for (BlockPos power : List.of(powerFirst, powerSecond)) {
+						helper.getLevel().updateNeighborsAt(helper.absolutePos(power), Blocks.AIR);
+					}
+				} else {
+					helper.setBlock(powerFirst, Blocks.AIR);
+					helper.setBlock(powerSecond, Blocks.AIR);
+				}
+			})
+			.thenIdle(20)
+			.thenExecute(() -> {
+				assertDoor(helper, door, first, false);
+				assertDoor(helper, door, second, false);
+			})
+			.thenSucceed();
+	}
+
+	@GameTest(maxTicks = 100)
+	public void twoDoorsCloseTogether(GameTestHelper helper) {
+		twoDoorsLosePower(helper, false, false);
+	}
+
+	@GameTest(maxTicks = 100)
+	public void twoDoorsCloseTogetherAfterAFill(GameTestHelper helper) {
+		twoDoorsLosePower(helper, false, true);
+	}
+
+	@GameTest(maxTicks = 100)
+	public void twoFrontDoorsCloseTogether(GameTestHelper helper) {
+		twoDoorsLosePower(helper, true, false);
+	}
+
+	@GameTest(maxTicks = 100)
+	public void twoFrontDoorsCloseTogetherAfterAFill(GameTestHelper helper) {
+		twoDoorsLosePower(helper, true, true);
+	}
+
 	// ---- copper ---------------------------------------------------------------------------
 
 	/** Turning one cell into its twin (what an axe, honeycomb or time does) turns the whole door. */
