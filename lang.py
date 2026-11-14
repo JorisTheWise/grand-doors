@@ -4,14 +4,15 @@ Each language gives a word for every material, a function that builds a door's n
 that language orders it, the tooltip lines and the titles of the creative tabs. gen_assets.py
 writes one language file for each. nl_be (Vlaams) uses the Dutch names.
 
-A door's kind is "door", "gate" (the iron gate of bars) or "glazed" (wood with glass).
+A door's kind is "door", "gate" (the iron gate of bars), "glazed" or "tinted" (wood with
+clear or tinted glass), or one of the house-door looks: "boarded", "windowed", "lattice".
 """
 
 MATERIALS = ("oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "mangrove", "cherry", "pale_oak",
              "bamboo", "crimson", "warped", "cobblestone", "stone_brick", "cobbled_deepslate", "deepslate_brick", "iron",
              "copper", "exposed_copper", "weathered_copper", "oxidized_copper",
              "waxed_copper", "waxed_exposed_copper", "waxed_weathered_copper", "waxed_oxidized_copper")
-TABS = ("wood", "arched_wood", "stone", "iron", "copper", "glazed")
+TABS = ("wood", "arched_wood", "stone", "iron", "copper", "glazed", "tinted", "styles")
 
 
 def words(*names):
@@ -24,25 +25,29 @@ def tabs(*titles):
 
 def dutch(material, kind, split, arched):
     # "de deur" and "het hek" take different endings.
-    noun = {"door": "deur", "gate": "hek", "glazed": "glasdeur"}[kind]
+    noun = {"door": "deur", "gate": "hek", "glazed": "glasdeur", "tinted": "rookglasdeur",
+            "boarded": "plankendeur", "windowed": "vensterdeur", "lattice": "roededeur"}[kind]
     double = ("dubbel " if kind == "gate" else "dubbele ") if split else ""
     return f"{material} {double}{'boog' if arched else ''}{noun}"
 
 
 def german(material, kind, split, arched):
     # "die Tür", "das Tor".
-    noun = {"door": "tür", "gate": "tor", "glazed": "glastür"}[kind]
+    noun = {"door": "tür", "gate": "tor", "glazed": "glastür", "tinted": "rauchglastür",
+            "boarded": "brettertür", "windowed": "fenstertür", "lattice": "sprossentür"}[kind]
     name = f"{material}-Bogen{noun}" if arched else f"{material}{noun}"
     return f"{('Doppeltes ' if kind == 'gate' else 'Doppelte ') if split else ''}{name}"
 
 
 def french(material, kind, split, arched):
-    noun = {"door": "Porte", "gate": "Grille", "glazed": "Porte vitrée"}[kind]
+    noun = {"door": "Porte", "gate": "Grille", "glazed": "Porte vitrée", "tinted": "Porte vitrée teintée",
+            "boarded": "Porte à planches", "windowed": "Porte à fenêtre", "lattice": "Porte à petits carreaux"}[kind]
     return f"{noun}{' double' if split else ''}{' cintrée' if arched else ''} {material}"
 
 
 def spanish(material, kind, split, arched):
-    noun = {"door": "Puerta", "gate": "Reja", "glazed": "Puerta acristalada"}[kind]
+    noun = {"door": "Puerta", "gate": "Reja", "glazed": "Puerta acristalada", "tinted": "Puerta de vidrio tintado",
+            "boarded": "Puerta de tablas", "windowed": "Puerta con ventana", "lattice": "Puerta de cuarterones"}[kind]
     return f"{noun}{' doble' if split else ''}{' arqueada' if arched else ''} {material}"
 
 
@@ -58,7 +63,7 @@ DUTCH = {
     "one_leaf": "één vleugel",
     "two_leaves": "twee vleugels die in het midden opengaan",
     "sneak": "Sluip tijdens het plaatsen: draait naar je toe",
-    "tabs": tabs("hout", "hout met boog", "steen", "ijzer", "koper", "met glas"),
+    "tabs": tabs("hout", "hout met boog", "steen", "ijzer", "koper", "met glas", "met rookglas", "huisdeuren"),
 }
 
 LANGUAGES = {
@@ -76,7 +81,7 @@ LANGUAGES = {
         "one_leaf": "ein Flügel",
         "two_leaves": "zwei Flügel, die sich in der Mitte öffnen",
         "sneak": "Beim Platzieren schleichen: öffnet sich zu dir hin",
-        "tabs": tabs("Holz", "Holz mit Bogen", "Stein", "Eisen", "Kupfer", "mit Glas"),
+        "tabs": tabs("Holz", "Holz mit Bogen", "Stein", "Eisen", "Kupfer", "mit Glas", "mit Rauchglas", "Haustüren"),
     },
     "fr_fr": {
         "materials": words("en chêne", "en sapin", "en bouleau", "en acajou", "en acacia", "en chêne noir",
@@ -90,7 +95,7 @@ LANGUAGES = {
         "one_leaf": "un vantail",
         "two_leaves": "deux vantaux qui s'ouvrent au milieu",
         "sneak": "Accroupi en posant : s'ouvre vers vous",
-        "tabs": tabs("bois", "bois cintré", "pierre", "fer", "cuivre", "vitrées"),
+        "tabs": tabs("bois", "bois cintré", "pierre", "fer", "cuivre", "vitrées", "verre teinté", "portes de maison"),
     },
     "es_es": {
         "materials": words("de roble", "de abeto", "de abedul", "de jungla", "de acacia", "de roble oscuro",
@@ -105,7 +110,7 @@ LANGUAGES = {
         "one_leaf": "una hoja",
         "two_leaves": "dos hojas que se abren por el centro",
         "sneak": "Agáchate al colocarla: se abre hacia ti",
-        "tabs": tabs("madera", "madera con arco", "piedra", "hierro", "cobre", "acristaladas"),
+        "tabs": tabs("madera", "madera con arco", "piedra", "hierro", "cobre", "acristaladas", "vidrio tintado", "puertas de casa"),
     },
 }
 

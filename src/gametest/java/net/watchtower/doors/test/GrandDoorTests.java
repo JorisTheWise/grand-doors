@@ -45,6 +45,11 @@ public class GrandDoorTests {
 		return (IntegerProperty) door.getStateDefinition().getProperty("row");
 	}
 
+	/** A cell's state with its row set; a door one tall has no row. */
+	private static BlockState inRow(GrandDoorBlock door, BlockState state, int row) {
+		return door.rowProperty() == null ? state : state.setValue(row(door), row);
+	}
+
 	private static BlockPos closedCell(Direction facing, int part, int row) {
 		return ORIGIN.relative(facing.getClockWise(), part).above(row);
 	}
@@ -92,8 +97,8 @@ public class GrandDoorTests {
 			for (int row = 0; row < door.height(); row++) {
 				BlockState state = door.defaultBlockState()
 					.setValue(GrandDoorBlock.FACING, facing)
-					.setValue(GrandDoorBlock.FRONT, front)
-					.setValue(row(door), row);
+					.setValue(GrandDoorBlock.FRONT, front);
+				state = inRow(door, state, row);
 				if (door.partProperty() != null) {
 					state = state.setValue(door.partProperty(), part);
 				}
@@ -255,6 +260,59 @@ public class GrandDoorTests {
 			.thenIdle(2)
 			.thenExecute(() -> assertDoor(helper, door, cells, false))
 			.thenSucceed();
+	}
+
+	/** The door of one block: it opens, closes and drops one item. */
+	private static void hatch(GameTestHelper helper, String name, Direction facing, boolean front) {
+		GrandDoorBlock door = door(name);
+		floor(helper);
+		build(helper, door, facing, DoorHingeSide.LEFT, front);
+		BlockPos closed = closedCell(facing, 0, 0);
+		BlockPos open = front ? closed.relative(facing) : closed;
+		helper.startSequence()
+			.thenExecute(() -> use(helper, closed))
+			.thenIdle(2)
+			.thenExecute(() -> assertDoor(helper, door, List.of(open), true))
+			.thenExecute(() -> use(helper, open))
+			.thenIdle(2)
+			.thenExecute(() -> assertDoor(helper, door, List.of(closed), false))
+			.thenExecute(() -> mine(helper, closed, new ItemStack(Items.IRON_PICKAXE)))
+			.thenIdle(2)
+			.thenExecute(() -> {
+				helper.assertBlockPresent(Blocks.AIR, closed);
+				assertDropped(helper, door, 1);
+			})
+			.thenSucceed();
+	}
+
+	@GameTest(maxTicks = 100)
+	public void oneByOneOpens(GameTestHelper helper) {
+		hatch(helper, "oak_door_1x1", Direction.NORTH, false);
+	}
+
+	@GameTest(maxTicks = 100)
+	public void oneByOneOnTheFrontFaceOpens(GameTestHelper helper) {
+		hatch(helper, "iron_gate_1x1", Direction.EAST, true);
+	}
+
+	@GameTest(maxTicks = 100)
+	public void oneByOneTintedOpens(GameTestHelper helper) {
+		hatch(helper, "spruce_tinted_door_1x1", Direction.SOUTH, false);
+	}
+
+	@GameTest(maxTicks = 100)
+	public void newStylesOpen(GameTestHelper helper) {
+		splitByHand(helper, "oak_split_lattice_door_2x2", Direction.NORTH);
+	}
+
+	@GameTest(maxTicks = 100)
+	public void boardedDoorOpens(GameTestHelper helper) {
+		singleInPlace(helper, "birch_boarded_door_2x2", Direction.WEST, DoorHingeSide.LEFT);
+	}
+
+	@GameTest(maxTicks = 100)
+	public void windowedDoorOpens(GameTestHelper helper) {
+		singleInPlace(helper, "dark_oak_windowed_door_1x2", Direction.EAST, DoorHingeSide.RIGHT);
 	}
 
 	@GameTest(maxTicks = 100)
@@ -658,8 +716,8 @@ public class GrandDoorTests {
 			for (int row = 0; row < door.height(); row++) {
 				BlockState state = door.defaultBlockState()
 					.setValue(GrandDoorBlock.FACING, facing)
-					.setValue(GrandDoorBlock.FRONT, front)
-					.setValue(row(door), row);
+					.setValue(GrandDoorBlock.FRONT, front);
+				state = inRow(door, state, row);
 				if (door.partProperty() != null) {
 					state = state.setValue(door.partProperty(), part);
 				}

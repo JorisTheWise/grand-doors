@@ -1,6 +1,6 @@
 # Grand Doors
 
-A Fabric mod for Minecraft 26.3 with doors one to four blocks wide and two to four blocks
+A Fabric mod for Minecraft 26.3 with doors one to four blocks wide and one to four blocks
 tall: wooden (plain or glazed), stone, iron and copper doors and an iron gate of bars, flat or
 with an arched top, as one leaf or as two leaves that open in the middle. Mod id `granddoors`, MIT. It is needed on
 the server and on every client.
@@ -23,7 +23,8 @@ different here, for him or anyone else who wants to take it over.
 
 ## Blocks
 
-`granddoors:<family>[_arched][_split]_<door|gate|glazed_door>_<w>x<h>`, 1,024 in all.
+`granddoors:<family>[_arched][_split]_<kind>_<w>x<h>`, 1,530 in all. `<kind>` is `door`,
+`gate`, `glazed_door`, `tinted_door`, `boarded_door`, `windowed_door` or `lattice_door`.
 
 | Family | Ids start with | Looks like |
 | --- | --- | --- |
@@ -34,15 +35,22 @@ different here, for him or anyone else who wants to take it over.
 | copper, 4 ages | `copper_`, `exposed_copper_`, `weathered_copper_`, `oxidized_copper_` ... `door` | a copper plate in a cut-copper frame; weathers to the next age |
 | waxed copper, 4 ages | `waxed_copper_`, `waxed_exposed_copper_`, ... `door` | the same, and it stays as it is |
 | glazed wood, the 12 woods | `oak_` ... `glazed_door` | the wooden door with glass from one block up |
+| tinted wood, the 12 woods | `oak_` ... `tinted_door` | the same with tinted glass |
+| boarded, the 12 woods | `oak_` ... `boarded_door` | plain planks on three ledges with strap hinges; house-door sizes only |
+| windowed, the 12 woods | `oak_` ... `windowed_door` | the panelled door with a small window at eye height; house-door sizes only |
+| lattice, the 12 woods | `oak_` ... `lattice_door` | glass above in four small panes to a block; house-door sizes only |
 
 | Shape | In the id | Leaves |
 | --- | --- | --- |
+| 1 wide, 1 tall | `door_1x1` | one: a hatch, a half door, a serving window |
 | 1 wide | `door_1x<h>` | one |
 | 2 wide | `split_door_2x<h>` or `door_2x<h>` | two of 1 block, or one of 2 |
 | 3 wide | `split_door_3x<h>` or `door_3x<h>` | two of 1.5 blocks, or one of 3 |
 | 4 wide | `split_door_4x<h>` | two of 2 blocks |
 
-Heights are 2, 3 and 4. Doors 3 and 4 tall also come with an arched top, `_arched` in the id
+Heights are 2, 3 and 4, and 1 for the door of one block (`door_1x1`, in every family but
+windowed and lattice). The house-door sizes are `door_1x2`, `split_door_2x2` and `door_2x2`:
+the boarded, windowed and lattice looks come in those only (boarded also as `1x1`). Doors 3 and 4 tall also come with an arched top, `_arched` in the id
 (`oak_arched_split_door_3x3`, `iron_arched_gate_1x4`). Stone doors that tall are always
 arched and have no `_arched` in their id. The single leaf three wide (`door_3x<h>`) has no
 arched form, in any family.
@@ -55,7 +63,7 @@ A door is one block per cell: `w` columns by `h` rows.
 | --- | --- | --- |
 | `facing` | `north`, `east`, `south`, `west` | the way the door swings: out of the building |
 | `part` | `0`..`w-1` | the column, counted from the left as you look along `facing`. A door 1 wide has no `part` |
-| `row` | `0`..`h-1` | the row, counted up from the floor |
+| `row` | `0`..`h-1` | the row, counted up from the floor. A door 1 tall has no `row` |
 | `open` | `false`, `true` | |
 | `powered` | `false`, `true` | the door has a redstone signal |
 | `hinge` | `left`, `right` | single doors only: the end the leaf turns on |
@@ -117,8 +125,8 @@ A door that has no room does not open and makes the locked-chest sound.
 Right-click opens and closes any of them, the iron ones too. A redstone signal on any cell
 opens the door and its end closes it: a lever, button or pressure plate beside the door, or
 dust or a powered block against any of its cells. An observer looking at a cell sees the door
-open and close. The doors are in six creative tabs (wood, arched wood, stone, iron, copper,
-glazed). Names and tooltips are in English, Dutch, Vlaams, German, French and Spanish
+open and close. The doors are in eight creative tabs (wood, arched wood, stone, iron, copper,
+glazed, tinted glass, house doors). Names and tooltips are in English, Dutch, Vlaams, German, French and Spanish
 (`lang.py`), and each item's tooltip gives its size. Breaking any cell breaks the whole door and drops one
 item (stone, iron and copper need a pickaxe).
 
@@ -137,6 +145,11 @@ Recipes, all shapeless unless said:
 | `iron_door_1x2` | the vanilla iron door |
 | copper `door_1x2` | the vanilla copper door of the same age, waxed or not |
 | wood `glazed_door_1x2` | the vanilla door of that wood and a glass pane |
+| wood `tinted_door_1x2` | the vanilla door and a block of tinted glass |
+| wood `boarded_door_1x2` | the vanilla door and a stick |
+| wood `windowed_door_1x2` | the vanilla door and a block of glass |
+| wood `lattice_door_1x2` | the vanilla door, a glass pane and a stick |
+| any `door_1x1` | the same as its `1x2`, with the vanilla trapdoor in place of the door (stone and the gate: four blocks or bars, 2 by 2) |
 | `iron_gate_1x2` | six iron bars, shaped 2 wide by 3 tall |
 | `door_1x3`, `door_1x4` | the `1x2` and one or two more planks, stones, iron ingots, iron bars, copper ingots or (glazed) glass panes |
 | arched `1x3`, `1x4` | the same and a slab of the wood, or an iron or copper nugget (stone needs nothing extra) |
@@ -144,11 +157,11 @@ Recipes, all shapeless unless said:
 
 ## Cost
 
-The mod adds about 344,000 block states (1,024 doors, each with all its facings, cells and
-positions). Measured on a bare 26.3 server that is about 130 MB of heap: 262 MB in use after
+The mod adds about 479,000 block states (1,530 doors, each with all its facings, cells and
+positions). Measured on a bare 26.3 server that is about 185 MB of heap: 315 MB in use after
 start with the mod, 129 MB with a single door registered. `MemoryProbe` in `src/gametest`
 logs the numbers on every `runGameTest`. A family of doors in every shape is about 9,400
-states, some 4 MB; the 12 glazed woods together are a third of the total.
+states, some 4 MB; the glazed and the tinted woods are each a quarter of the total.
 
 ## Build
 

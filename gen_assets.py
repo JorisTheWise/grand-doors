@@ -50,7 +50,7 @@ from lang import LANGUAGES, language_file
 
 MOD = "granddoors"
 THICK = 3
-HEIGHTS = (2, 3, 4)
+HEIGHTS = (1, 2, 3, 4)
 # (width, split)
 SHAPES = ((1, False), (2, True), (2, False), (3, True), (3, False), (4, True))
 FACINGS = {"north": 0, "east": 90, "south": 180, "west": 270}
@@ -70,18 +70,45 @@ def wood(name, label, frame=None):
         "textures": {"base": block(name + "_planks"), "frame": block(frame or f"stripped_{name}_log"), "metal": block("iron_block")},
         "tool": "axe",
         "base_recipe": {"shapeless": [f"minecraft:{name}_door"]},
+        "hatch_recipe": {"shapeless": [f"minecraft:{name}_trapdoor"]},
         "unit": f"minecraft:{name}_planks", "arch_item": f"minecraft:{name}_slab",
     }
 
 
-def glazed(name, label, frame=None):
-    """The wooden door with glass in it from one block up."""
+def glazed(name, label, frame=None, tinted=False):
+    """The wooden door with glass in it from one block up; clear glass or tinted."""
     family = wood(name, label, frame)
-    family.update(noun="glazed_door", style="glazed", kind="glazed", label=label,
-                  base_recipe={"shapeless": [f"minecraft:{name}_door", "minecraft:glass_pane"]},
-                  unit="minecraft:glass_pane")
+    glass = "minecraft:tinted_glass" if tinted else "minecraft:glass_pane"
+    kind = "tinted" if tinted else "glazed"
+    family.update(noun=kind + "_door", style="glazed", kind=kind, tab=kind,
+                  base_recipe={"shapeless": [f"minecraft:{name}_door", glass]},
+                  hatch_recipe={"shapeless": [f"minecraft:{name}_trapdoor", glass]},
+                  unit=glass)
+    family["textures"] = dict(family["textures"], glass=block("tinted_glass" if tinted else "glass"))
+    return family
+
+
+# The three looks that only come in the sizes of a house door.
+HOUSE_SIZES = {(1, 2, False), (2, 2, True), (2, 2, False)}
+
+
+def house_style(kind, name, label, frame=None):
+    """Another look for the house-door sizes: boarded, with a small window, or glass in a lattice."""
+    family = wood(name, label, frame)
+    extra = {"boarded": ["minecraft:stick"], "windowed": ["minecraft:glass"],
+             "lattice": ["minecraft:glass_pane", "minecraft:stick"]}[kind]
+    family.update(noun=kind + "_door", style=kind, kind=kind, tab="styles",
+                  base_recipe={"shapeless": [f"minecraft:{name}_door"] + extra},
+                  sizes=HOUSE_SIZES | ({(1, 1, False)} if kind == "boarded" else set()),
+                  hatch_recipe={"shapeless": [f"minecraft:{name}_trapdoor"] + extra})
     family["textures"] = dict(family["textures"], glass=block("glass"))
     return family
+
+
+WOODS = (("oak", "Oak", None), ("spruce", "Spruce", None), ("birch", "Birch", None), ("jungle", "Jungle", None),
+         ("acacia", "Acacia", None), ("dark_oak", "Dark Oak", None), ("mangrove", "Mangrove", None),
+         ("cherry", "Cherry", None), ("pale_oak", "Pale Oak", None), ("bamboo", "Bamboo", "stripped_bamboo_block"),
+         ("crimson", "Crimson", "stripped_crimson_stem"), ("warped", "Warped", "stripped_warped_stem"))
 
 
 COPPER_AGES = (("copper", "Copper", "copper_block", "cut_copper"),
@@ -99,6 +126,7 @@ def copper(age, waxed):
         "textures": {"base": block(base), "frame": block(frame), "metal": block(frame)},
         "tool": "pickaxe",
         "base_recipe": {"shapeless": [f"minecraft:{stem}_door"]},
+        "hatch_recipe": {"shapeless": [f"minecraft:{stem}_trapdoor"]},
         "unit": "minecraft:copper_ingot", "arch_item": "minecraft:copper_nugget",
         # What an unwaxed door weathers to, and the waxed twin of each: stems of other families.
         "weathers_to": None if waxed or age == 3 else COPPER_AGES[age + 1][0],
@@ -113,6 +141,7 @@ def stone(name, label, base, frame):
         "textures": {"base": block(base), "frame": block(frame), "metal": block("iron_block")},
         "tool": "pickaxe",
         "base_recipe": {"shaped": ["MM", "MM", "MM"], "key": {"M": "minecraft:" + base}},
+        "hatch_recipe": {"shaped": ["MM", "MM"], "key": {"M": "minecraft:" + base}},
         "unit": "minecraft:" + base, "arch_item": None,
     }
 
@@ -132,6 +161,7 @@ FAMILIES = [
         "textures": {"base": block("iron_block"), "frame": block("anvil"), "metal": block("anvil")},
         "tool": "pickaxe",
         "base_recipe": {"shapeless": ["minecraft:iron_door"]},
+        "hatch_recipe": {"shapeless": ["minecraft:iron_trapdoor"]},
         "unit": "minecraft:iron_ingot", "arch_item": "minecraft:iron_nugget",
     },
     {
@@ -139,6 +169,7 @@ FAMILIES = [
         "textures": {"base": block("anvil"), "frame": block("anvil"), "metal": block("anvil")},
         "tool": "pickaxe",
         "base_recipe": {"shaped": ["BB", "BB", "BB"], "key": {"B": "minecraft:iron_bars"}},
+        "hatch_recipe": {"shaped": ["BB", "BB"], "key": {"B": "minecraft:iron_bars"}},
         "unit": "minecraft:iron_bars", "arch_item": "minecraft:iron_nugget",
     },
     *(copper(age, False) for age in range(4)),
@@ -148,6 +179,8 @@ FAMILIES = [
     glazed("cherry", "Cherry"), glazed("pale_oak", "Pale Oak"),
     glazed("bamboo", "Bamboo", "stripped_bamboo_block"),
     glazed("crimson", "Crimson", "stripped_crimson_stem"), glazed("warped", "Warped", "stripped_warped_stem"),
+    *(glazed(name, label, frame, tinted=True) for name, label, frame in WOODS),
+    *(house_style(kind, name, label, frame) for kind in ("boarded", "windowed", "lattice") for name, label, frame in WOODS),
 ]
 
 
@@ -171,10 +204,14 @@ TABS = {
     "iron": "Grand Doors: Iron",
     "copper": "Grand Doors: Copper",
     "glazed": "Grand Doors: Glazed",
+    "tinted": "Grand Doors: Tinted Glass",
+    "styles": "Grand Doors: House Doors",
 }
 
 
 def tab_of(family, arched):
+    if "tab" in family:
+        return family["tab"]
     if family["style"] == "wood":
         return "arched_wood" if arched else "wood"
     if family["style"] == "glazed":
@@ -191,6 +228,10 @@ def doors():
         for arched in (False, True):
             for height in HEIGHTS:
                 for width, split in SHAPES:
+                    if height == 1 and width > 1:
+                        continue  # one block tall only as the door of one block
+                    if "sizes" in family and (width, height, split) not in family["sizes"]:
+                        continue
                     can_arch = height >= 3 and not moving(width, split)
                     if family["style"] == "stone":
                         if arched != can_arch:
@@ -235,12 +276,47 @@ def leaf_boxes(length, height, style):
             boxes.append((0, length, v0, v1, 0.5, 2.5, "frame"))
         for u in range(4, int(length) - 2, 4):
             boxes.append((u - 0.5, u + 0.5, 1, top(0), 1, 2, "base"))
-        boxes.append((length - 5, length - 2, 17, 22, 0.5, 2.5, "frame"))  # the lock
+        if height > 1:
+            boxes.append((length - 5, length - 2, 17, 22, 0.5, 2.5, "frame"))  # the lock
         return boxes
 
-    if style == "glazed":
-        # Timber up to the first rail, a thin pane of glass above it.
-        boxes = [(0, length, 0, 16, 0.5, THICK - 0.5, "base"), (0, length, 16, top(0), 1, 2, "glass")]
+    blocks = range(int(length) // 16)
+    pull = (length - 1.5, length - 0.5, 19, 23, -1, THICK + 1, "metal") if height > 1 else \
+        (length - 1.5, length - 0.5, 6, 10, -1, THICK + 1, "metal")
+
+    if style == "boarded":
+        # A plain plank leaf held together by three ledges, on two strap hinges.
+        boxes = [(0, length, 0, top(0), 0.5, THICK - 0.5, "base")]
+        ledges = [(3, 6), (top(-6), top(-3))] + ([(14.5, 17.5)] if height > 1 else [])
+        for v0, v1 in ledges:
+            boxes.append((0, length, v0, v1, 0, THICK, "frame"))
+            boxes.append((0, 7, v0 if isinstance(v0, tuple) else v0 + 1, v1 if isinstance(v1, tuple) else v1 - 1,
+                          -0.5, THICK + 0.5, "metal"))
+        return boxes + [pull]
+
+    if style in ("glazed", "lattice"):
+        # Timber up to the first rail, a thin pane of glass above it. One block tall: all glass.
+        sill = 16 if height > 1 else 0
+        boxes = [(0, length, 0, sill, 0.5, THICK - 0.5, "base"), (0, length, sill, top(0), 1, 2, "glass")] if sill else \
+            [(0, length, 0, top(0), 1, 2, "glass")]
+        if style == "lattice":
+            # Glazing bars: four small panes to a block.
+            for k in blocks:
+                boxes.append((16 * k + 7.5, 16 * k + 8.5, 16, top(0), 0.5, THICK - 0.5, "frame"))
+            for row in range(1, height):
+                boxes.append((0, length, 16 * row + 7.5, 16 * row + 8.5, 0.5, THICK - 0.5, "frame"))
+    elif style == "windowed":
+        # The panelled door with one small window to a block, at eye height.
+        boxes = [(0, length, 0, 20, 0.5, THICK - 0.5, "base"), (0, length, 28, top(0), 0.5, THICK - 0.5, "base")]
+        edge = 0
+        for k in blocks:
+            u0, u1 = 16 * k + 4, 16 * k + 12
+            boxes.append((edge, u0, 20, 28, 0.5, THICK - 0.5, "base"))
+            boxes.append((u0, u1, 20, 28, 1, 2, "glass"))
+            for a, b, c, d in ((u0 - 1, u1 + 1, 19, 20), (u0 - 1, u1 + 1, 28, 29), (u0 - 1, u0, 20, 28), (u1, u1 + 1, 20, 28)):
+                boxes.append((a, b, c, d, 0, THICK, "frame"))
+            edge = u1
+        boxes.append((edge, length, 20, 28, 0.5, THICK - 0.5, "base"))
     else:
         boxes = [(0, length, 0, top(0), 0.5, THICK - 0.5, "base")]
     stiles = [(0, 2), (length - 2, length)]
@@ -252,7 +328,7 @@ def leaf_boxes(length, height, style):
     for v0, v1 in rails:
         boxes.append((0, length, v0, v1, 0, THICK, "frame"))
     # A pull on both faces, on the stile at the free edge.
-    boxes.append((length - 1.5, length - 0.5, 19, 23, -1, THICK + 1, "metal"))
+    boxes.append(pull)
     return boxes
 
 
@@ -398,6 +474,8 @@ def recipe(family, width, height, split, arched):
 
     if width > 1:
         return {"shapeless": [one(height)] * width + (["minecraft:stick"] if split else [])}
+    if height == 1:
+        return family["hatch_recipe"]
     if height == 2:
         return family["base_recipe"]
     extra = [family["arch_item"]] if arched and family["arch_item"] else []
@@ -468,7 +546,9 @@ def main():
             for (part, row), elements in cells.items():
                 ref = block_model(elements, textures) if elements else f"{MOD}:block/empty"
                 for facing, turn in FACINGS.items():
-                    key = f"facing={facing},front={str(front).lower()},open={str(opened).lower()},row={row}"
+                    key = f"facing={facing},front={str(front).lower()},open={str(opened).lower()}"
+                    if height > 1:
+                        key += f",row={row}"
                     if width > 1:
                         key += f",part={part}"
                     if hinge_right is not None:
@@ -484,7 +564,9 @@ def main():
                           split, named_arched, width, height))
         mineable[family["tool"]].append(block_id)
 
-        anchor = {"row": "0"}
+        anchor = {}
+        if height > 1:
+            anchor["row"] = "0"
         if width > 1:
             anchor["part"] = "0"
         write(data / f"loot_table/blocks/{name}.json", {
@@ -496,7 +578,7 @@ def main():
                 "entries": [{
                     "type": "minecraft:item",
                     "name": block_id,
-                    "condition": {"type": "minecraft:match_block", "blocks": block_id, "state": anchor},
+                    **({"condition": {"type": "minecraft:match_block", "blocks": block_id, "state": anchor}} if anchor else {}),
                 }],
             }],
         })

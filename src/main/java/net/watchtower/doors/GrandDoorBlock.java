@@ -44,7 +44,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A door one to four blocks wide and two to four blocks tall, one block per cell.
+ * A door one to four blocks wide and one to four blocks tall, one block per cell.
  *
  * <p>{@code facing} is the way the door swings (out of the building), {@code part} counts the
  * columns from the left as you look that way, and {@code row} counts up from the floor.
@@ -78,7 +78,7 @@ public class GrandDoorBlock extends Block {
 	private static final IntegerProperty[] PARTS = {
 		null, null, IntegerProperty.create("part", 0, 1), IntegerProperty.create("part", 0, 2), IntegerProperty.create("part", 0, 3)
 	};
-	public static final int MIN_HEIGHT = 2;
+	public static final int MIN_HEIGHT = 1;
 	public static final int MAX_HEIGHT = 4;
 	private static final IntegerProperty[] ROWS = {
 		null, null, IntegerProperty.create("row", 0, 1), IntegerProperty.create("row", 0, 2), IntegerProperty.create("row", 0, 3)
@@ -157,12 +157,14 @@ public class GrandDoorBlock extends Block {
 		this.leafRight = shapes(16 - THICK, -this.reach, 16, 16);
 		BlockState state = this.stateDefinition.any()
 			.setValue(FACING, Direction.NORTH)
-			.setValue(ROWS[height], 0)
 			.setValue(OPEN, false)
 			.setValue(POWERED, false)
 			.setValue(FRONT, false);
 		if (width > 1) {
 			state = state.setValue(PARTS[width], 0);
+		}
+		if (height > 1) {
+			state = state.setValue(ROWS[height], 0);
 		}
 		this.registerDefaultState(split ? state : state.setValue(HINGE, DoorHingeSide.LEFT));
 	}
@@ -173,7 +175,10 @@ public class GrandDoorBlock extends Block {
 		if (size == null) {
 			throw new IllegalStateException("make a GrandDoorBlock through GrandDoorBlock.sized");
 		}
-		builder.add(FACING, ROWS[size.height()], OPEN, POWERED, FRONT);
+		builder.add(FACING, OPEN, POWERED, FRONT);
+		if (size.height() > 1) {
+			builder.add(ROWS[size.height()]);
+		}
 		if (size.width() > 1) {
 			builder.add(PARTS[size.width()]);
 		}
@@ -205,8 +210,13 @@ public class GrandDoorBlock extends Block {
 
 	// ---- geometry -------------------------------------------------------------------------
 
+	/** The row property; a door one tall has none. */
+	public @Nullable IntegerProperty rowProperty() {
+		return ROWS[this.height];
+	}
+
 	private int rowOf(BlockState state) {
-		return state.getValue(ROWS[this.height]);
+		return this.height == 1 ? 0 : state.getValue(ROWS[this.height]);
 	}
 
 	/** The column a single leaf turns on. A split door has a hinge at both ends. */
@@ -264,7 +274,7 @@ public class GrandDoorBlock extends Block {
 	}
 
 	private BlockState cellState(BlockState door, Cell cell) {
-		BlockState state = door.setValue(ROWS[this.height], cell.row());
+		BlockState state = this.height == 1 ? door : door.setValue(ROWS[this.height], cell.row());
 		return this.width == 1 ? state : state.setValue(PARTS[this.width], cell.part());
 	}
 
