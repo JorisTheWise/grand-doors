@@ -562,6 +562,12 @@ public class GrandDoorBlock extends Block {
 	/** How the path finder sees a cell: like a vanilla door of wood or of iron, or a fence. */
 	public PathType pathType(BlockState state) {
 		if (state.getValue(OPEN)) {
+			// A door that swings its leaf out stands it in the cells in front of its hinge: a wall across the room that a
+			// mob must walk round, not through (the owner on live, 2026-11-22: "villagers seem to walk into big grand doors
+			// when they are open, they can't pathfind around it"). Its hinge cell and the doorway it frees stay open.
+			if (this.moves && !this.isHinge(state, this.partOf(state))) {
+				return PathType.FENCE;
+			}
 			return PathType.DOOR_OPEN;
 		}
 		if (this.fence) {
