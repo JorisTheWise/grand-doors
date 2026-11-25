@@ -69,6 +69,7 @@ DUTCH = {
     "two_leaves": "twee vleugels die in het midden opengaan",
     "sneak": "Sluip tijdens het plaatsen: draait naar je toe",
     "tabs": tabs("hout", "hout met boog", "steen", "ijzer", "koper", "met glas", "met rookglas", "huisdeuren", "hekpoorten"),
+    "hint": ("Breder dan een deur", "Leg een deur alleen in het werkveld, daarna twee of drie samen"),
 }
 
 LANGUAGES = {
@@ -87,6 +88,7 @@ LANGUAGES = {
         "two_leaves": "zwei Flügel, die sich in der Mitte öffnen",
         "sneak": "Beim Platzieren schleichen: öffnet sich zu dir hin",
         "tabs": tabs("Holz", "Holz mit Bogen", "Stein", "Eisen", "Kupfer", "mit Glas", "mit Rauchglas", "Haustüren", "Zauntore"),
+        "hint": ("Breiter als eine Tür", "Lege eine Tür allein ins Handwerksfeld, danach zwei oder drei zusammen"),
     },
     "fr_fr": {
         "materials": words("en chêne", "en sapin", "en bouleau", "en acajou", "en acacia", "en chêne noir",
@@ -101,6 +103,7 @@ LANGUAGES = {
         "two_leaves": "deux vantaux qui s'ouvrent au milieu",
         "sneak": "Accroupi en posant : s'ouvre vers vous",
         "tabs": tabs("bois", "bois cintré", "pierre", "fer", "cuivre", "vitrées", "verre teinté", "portes de maison", "portillons"),
+        "hint": ("Plus large qu'une porte", "Posez une porte seule dans la grille d'artisanat, puis deux ou trois ensemble"),
     },
     "es_es": {
         "materials": words("de roble", "de abeto", "de abedul", "de jungla", "de acacia", "de roble oscuro",
@@ -116,6 +119,7 @@ LANGUAGES = {
         "two_leaves": "dos hojas que se abren por el centro",
         "sneak": "Agáchate al colocarla: se abre hacia ti",
         "tabs": tabs("madera", "madera con arco", "piedra", "hierro", "cobre", "acristaladas", "vidrio tintado", "puertas de casa", "puertas de valla"),
+        "hint": ("Más ancha que una puerta", "Pon una puerta sola en la cuadrícula de fabricación, y luego dos o tres juntas"),
     },
 }
 
@@ -127,6 +131,9 @@ def language_file(mod, language, door_rows):
         f"tooltip.{mod}.one_leaf": language["one_leaf"],
         f"tooltip.{mod}.two_leaves": language["two_leaves"],
         f"tooltip.{mod}.sneak": language["sneak"],
+        f"advancements.{mod}.wider_than_a_door.title": language["hint"][0],
+        f"advancements.{mod}.wider_than_a_door.description": language["hint"][1],
+        f"tag.item.{mod}.doors": "Grand Doors",
     }
     for tab, title in language["tabs"].items():
         out[f"itemGroup.{mod}.{tab}"] = title

@@ -534,6 +534,37 @@ def recipe(family, width, height, split, arched):
     return {"shapeless": [one(2)] + [family["unit"]] * (height - 2) + extra}
 
 
+def first_item(made):
+    """The first ingredient of a recipe as written in the family."""
+    return made["shapeless"][0] if "shapeless" in made else next(iter(made["key"].values()))
+
+
+def unlocked_by(family, width, height, split, arched):
+    """The items that put a door's recipe in the recipe book, the way vanilla does it: the first
+    time the player holds one. The first door of a family comes with the vanilla door (or
+    trapdoor, stone, bars) it is made from; every bigger one with the family's first Grand Door
+    or the door it is made from.
+    """
+    if "gate_recipe" in family:
+        return [family["gate_recipe"][0]]
+    if width == 1 and height == 1:
+        return [first_item(family["hatch_recipe"])]
+    if width == 1 and height == 2:
+        return [first_item(family["base_recipe"])]
+    items = [f"{MOD}:{door_name(family, 1, 2, False, False)}"]
+    for item in recipe(family, width, height, split, arched)["shapeless"]:
+        if item.startswith(MOD + ":") and item not in items:
+            items.append(item)
+    return items
+
+
+# The one advancement: a hint, seen from the start in the advancements screen, of how a Grand
+# Door is made. Earned on holding any of them.
+HINT = "wider_than_a_door"
+HINT_ICON = "oak_split_door_3x2"
+HINT_TEXT = ("Wider Than a Door", "Put a door in the crafting grid on its own, then two or three of them together")
+
+
 # ---- writing -------------------------------------------------------------------------------
 
 def main():
@@ -569,6 +600,9 @@ def main():
         "tooltip.granddoors.one_leaf": "one leaf",
         "tooltip.granddoors.two_leaves": "two leaves that open in the middle",
         "tooltip.granddoors.sneak": "Sneak while placing: swings towards you",
+        f"advancements.{MOD}.{HINT}.title": HINT_TEXT[0],
+        f"advancements.{MOD}.{HINT}.description": HINT_TEXT[1],
+        f"tag.item.{MOD}.doors": "Grand Doors",
     }
     for tab, title in TABS.items():
         lang[f"itemGroup.{MOD}.{tab}"] = title
@@ -643,16 +677,39 @@ def main():
 
         made = recipe(family, width, height, split, arched)
         result = {"count": 1, "id": block_id}
+        # One button in the recipe book for each family and kind; its sizes are the alternatives.
+        group = f"{MOD}_{family['stem']}_{family['noun']}"
         if "shaped" in made:
             write(data / f"recipe/{name}.json", {
-                "type": "minecraft:crafting_shaped", "category": "building",
+                "type": "minecraft:crafting_shaped", "category": "building", "group": group,
                 "key": made["key"], "pattern": made["shaped"], "result": result})
         else:
             write(data / f"recipe/{name}.json", {
-                "type": "minecraft:crafting_shapeless", "category": "building",
+                "type": "minecraft:crafting_shapeless", "category": "building", "group": group,
                 "ingredients": made["shapeless"], "result": result})
+        write(data / f"advancement/recipes/{tab_of(family, arched)}/{name}.json", {
+            "parent": "minecraft:recipes/root",
+            "criteria": {
+                "has_the_recipe": {"trigger": "minecraft:recipe_unlocked", "conditions": {"recipes": block_id}},
+                "has_the_door": {"trigger": "minecraft:inventory_changed",
+                                 "conditions": {"items": [{"items": unlocked_by(family, width, height, split, arched)}]}},
+            },
+            "requirements": [["has_the_recipe", "has_the_door"]],
+            "rewards": {"recipes": [block_id]},
+        })
 
     write(out / f"{MOD}_doors.json", door_list)
+    write(data / "tags/item/doors.json", {"values": [f"{MOD}:{entry['name']}" for entry in door_list]})
+    write(data / f"advancement/{HINT}.json", {
+        "parent": "minecraft:story/root",
+        "display": {
+            "icon": {"id": f"{MOD}:{HINT_ICON}"},
+            "title": {"translate": f"advancements.{MOD}.{HINT}.title"},
+            "description": {"translate": f"advancements.{MOD}.{HINT}.description"},
+        },
+        "criteria": {"door": {"trigger": "minecraft:inventory_changed", "conditions": {"items": [{"items": f"#{MOD}:doors"}]}}},
+        "requirements": [["door"]],
+    })
     write(assets / "lang/en_us.json", lang)
     for code, language in LANGUAGES.items():
         write(assets / f"lang/{code}.json", language_file(MOD, language, door_rows))

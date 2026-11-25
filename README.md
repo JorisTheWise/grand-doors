@@ -163,6 +163,24 @@ scrape a door back one age or to take the wax off; sneak and use honeycomb to wa
 Villagers open and close the wooden doors (plain and glazed) as they do vanilla's, also the
 wide ones and the ones with `front=true`. They leave stone, iron and copper shut.
 
+### Finding the recipes
+
+Players find them the way they find vanilla's: a recipe appears in the recipe book the first
+time they hold what it is made from, a step at a time.
+
+| Holding for the first time | Puts in the recipe book |
+| --- | --- |
+| a vanilla door (oak, iron, copper ...) | that family's `door_1x2`, and the glazed, tinted and house-door `1x2` |
+| a vanilla trapdoor | that family's `door_1x1` |
+| the stone (cobblestone, stone bricks ...), or iron bars | the stone door or the iron gate `1x2`, and its `1x1` |
+| a family's first Grand Door (`door_1x2`) | every taller, wider, split and arched door of that family |
+| a vanilla fence gate, or iron bars | the wide fence gates of that wood, or of iron |
+
+In the recipe book the doors of one family and kind share one button; its other sizes are on
+right-click. One advancement on the Minecraft tab, "Wider Than a Door", is in sight from the
+start and gives the hint: a door on its own in the grid, then two or three together. Holding
+any Grand Door earns it.
+
 Recipes, all shapeless unless said:
 
 | Door | Made from |

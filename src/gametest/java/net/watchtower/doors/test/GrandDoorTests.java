@@ -1165,4 +1165,45 @@ public class GrandDoorTests {
 			})
 			.thenSucceed();
 	}
+
+	// ---- the recipe book ------------------------------------------------------------------
+	// A mock player has no connection to send a recipe book to, so these read the unlock
+	// advancements the game loaded and ask them what they wait for.
+
+	/** True if holding {@code item} unlocks the recipe of {@code name}, and nothing else does. */
+	private static boolean unlocks(GameTestHelper helper, Player player, String path, net.minecraft.world.item.Item item) {
+		var holder = helper.getLevel().getServer().getAdvancements().get(Identifier.fromNamespaceAndPath("granddoors", path));
+		if (holder == null) {
+			throw new IllegalStateException("no advancement granddoors:" + path);
+		}
+		String name = path.substring(path.lastIndexOf('/') + 1);
+		var recipes = holder.value().rewards().recipes();
+		if (recipes.size() != 1 || !recipes.get(0).identifier().equals(Identifier.fromNamespaceAndPath("granddoors", name))) {
+			throw new IllegalStateException(path + " should reward its own recipe, gives " + recipes);
+		}
+		var criterion = holder.value().criteria().get("has_the_door");
+		ItemStack stack = new ItemStack(item);
+		player.getInventory().clearContent();
+		player.getInventory().add(stack.copy());
+		return criterion.triggerInstance() instanceof net.minecraft.advancements.triggers.InventoryChangeTrigger.TriggerInstance held
+			&& held.matches(player.getInventory(), stack, 0, 35, 1);
+	}
+
+	@GameTest(maxTicks = 100)
+	public void recipesUnlockAStepAtATime(GameTestHelper helper) {
+		Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+		helper.assertTrue(unlocks(helper, player, "recipes/wood/oak_door_1x2", Items.OAK_DOOR), Component.literal("an oak door unlocks the oak Grand Door 1x2"));
+		helper.assertTrue(unlocks(helper, player, "recipes/glazed/oak_glazed_door_1x2", Items.OAK_DOOR), Component.literal("an oak door unlocks the glazed oak 1x2"));
+		helper.assertTrue(unlocks(helper, player, "recipes/wood/oak_door_1x1", Items.OAK_TRAPDOOR), Component.literal("an oak trapdoor unlocks the oak 1x1"));
+		helper.assertTrue(!unlocks(helper, player, "recipes/wood/oak_split_door_3x2", Items.OAK_DOOR), Component.literal("the wide doors wait for the first Grand Door"));
+		helper.assertTrue(!unlocks(helper, player, "recipes/wood/spruce_door_1x2", Items.OAK_DOOR), Component.literal("an oak door unlocks no spruce door"));
+		helper.assertTrue(unlocks(helper, player, "recipes/wood/oak_split_door_3x2", door("oak_door_1x2").asItem()), Component.literal("the first Grand Door unlocks the wide ones"));
+		helper.assertTrue(unlocks(helper, player, "recipes/arched_wood/oak_arched_door_1x4", door("oak_door_1x2").asItem()), Component.literal("the first Grand Door unlocks the arched ones"));
+		helper.assertTrue(!unlocks(helper, player, "recipes/fences/oak_split_fence_gate_3x1", door("oak_door_1x2").asItem()), Component.literal("fence gates wait for a fence gate"));
+		helper.assertTrue(unlocks(helper, player, "recipes/fences/oak_split_fence_gate_3x1", Items.OAK_FENCE_GATE), Component.literal("an oak fence gate unlocks the wide oak fence gates"));
+		helper.assertTrue(unlocks(helper, player, "recipes/iron/iron_door_1x2", Items.IRON_DOOR), Component.literal("an iron door unlocks the iron Grand Door"));
+		var hint = helper.getLevel().getServer().getAdvancements().get(Identifier.fromNamespaceAndPath("granddoors", "wider_than_a_door"));
+		helper.assertTrue(hint != null && hint.value().display().isPresent(), Component.literal("the hint advancement is shown in the advancements screen"));
+		helper.succeed();
+	}
 }
