@@ -210,10 +210,16 @@ states, some 4 MB; the glazed and the tinted woods are each a quarter of the tot
 
 ## Build
 
-Java 25 and Fabric Loom, in a container (the workstation has no JDK 25):
+Java 25 and Fabric Loom. `gen_assets.py` (Python 3) has to run first. With a JDK 25 installed:
 
 ```
 python gen_assets.py
+./gradlew build runGameTest
+```
+
+Without one, in a container:
+
+```
 docker run --rm -v <this folder>:/w -v wtp-gradle:/root/.gradle -w /w eclipse-temurin:25-jdk sh ./gradlew build runGameTest
 ```
 
