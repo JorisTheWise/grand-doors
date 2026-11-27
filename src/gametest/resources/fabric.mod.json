@@ -6,7 +6,8 @@
   "environment": "*",
   "entrypoints": {
     "main": ["net.watchtower.doors.test.MemoryProbe"],
-    "fabric-gametest": ["net.watchtower.doors.test.GrandDoorTests"]
+    "fabric-gametest": ["net.watchtower.doors.test.GrandDoorTests"],
+    "fabric-client-gametest": ["net.watchtower.doors.test.GalleryShots"]
   },
   "depends": {
     "granddoors": "*"

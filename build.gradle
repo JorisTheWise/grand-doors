@@ -28,13 +28,14 @@ java {
 // Models, block states, recipes and loot tables are written by gen_assets.py.
 sourceSets.main.resources.srcDir 'src/generated/resources'
 
-// Server-side game tests: ./gradlew runGameTest
+// Server-side game tests: ./gradlew runGameTest. The gallery pictures for the mod page:
+// GD_GALLERY=all ./gradlew runClientGameTest (see GalleryShots).
 fabricApi {
 	configureTests {
 		createSourceSet = true
 		modId = "granddoors_test"
 		enableGameTests = true
-		enableClientGameTests = false
+		enableClientGameTests = true
 		eula = true
 	}
 }
@@ -43,5 +44,20 @@ fabricApi {
 jar {
 	from('LICENSE') {
 		rename { "LICENSE_granddoors" }
+	}
+}
+
+// -PextraMods=<folder>: also load every jar in that folder in the test client (Sodium and Iris
+// for the gallery's shader pictures). -PgraphicsBackend=vulkan|opengl picks the game's backend.
+if (project.hasProperty('extraMods')) {
+	dependencies {
+		localRuntime fileTree(project.property('extraMods')) { include '*.jar' }
+	}
+}
+if (project.hasProperty('graphicsBackend')) {
+	loom.runs.configureEach {
+		if (name == 'clientGameTest') {
+			programArgs '--graphicsBackend', project.property('graphicsBackend')
+		}
 	}
 }

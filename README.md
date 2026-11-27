@@ -236,6 +236,21 @@ which doors exist: it writes the list the mod registers, and the block states, m
 tables, recipes, tags and language file, into `src/generated/resources` (not committed). Its
 docstring explains how a leaf is drawn.
 
+### Gallery pictures
+
+`GalleryShots` (a client game test) takes the pictures for the mod page in a real client: little
+scenes in a generated landscape and walls of doors side by side. It needs a graphics card, so it
+runs outside the container, with any JDK 25:
+
+```
+GD_GALLERY=all ./gradlew runClientGameTest
+```
+
+`GD_GALLERY` is `all`, `catalogue` or `cinematic`; `GD_ONLY` (a comma list of picture names)
+re-takes only those. With `-PextraMods=<folder>` holding Sodium and Iris, and `GD_SHADER` naming a
+shader pack zip, the scenes are taken with that shader; the catalogue always in vanilla light, so
+the colours are true. The pictures land in `build/run/clientGameTest/screenshots`.
+
 ## How it works
 
 - `GrandDoorBlock` holds everything: the cell geometry, the shapes, opening and closing,
